@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+
+# stdlib
+import argparse
+import asyncio
+import json
+import logging
+import pprint
+import sys
+import time
+
+#pypi
+#import pynetstring
+
+# mine
+import jobcenter_client
+
+# globals
+pp = pprint.PrettyPrinter(indent=4)
+client = None
+debug = True # False
+
+async def add(reqid, args):
+    counter = args['counter']
+    step = args.get('step', 1)
+    await asyncio.sleep(1)
+    logging.info(f'{reqid}: adding {step} to {counter}')
+    return {"counter": counter + step}
+
+def div(reqid, args, env):
+    return {"quotient": args['dividend'] / args['divisor']}
+
+async def main():
+    client = jobcenter_client.JobCenter_Client(
+        who = 'deArbeider',
+        token = 'doetDingen',
+        #who = 'derArbeitnehmer',
+        #token = 'machtDinge',
+    )
+
+    ret = -1
+    while ret != 0:
+        logging.info('connecting..')
+        await client.connect()
+        await client.announce(actionname = 'add', cb = add, mode='async')
+        await client.announce(actionname = 'div', cb = div, addenv=True)
+        logging.info('starting work()')
+        ret = await client.work()
+        logging.info(f'work returned {ret}')
+        time.sleep(1)
+        ret = 0
+    logging.info(f'done? {ret!s}')
+    return ret
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description = 'do some RPC-Switch work')
+    parser.add_argument('--debug', '-d', action='store_true')
+    args = parser.parse_args()
+    debug = args.debug
+    if debug:
+        logging.basicConfig(level=logging.DEBUG)
+    asyncio.run(main(), debug = debug)
+   
+

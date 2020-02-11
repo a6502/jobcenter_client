@@ -1,0 +1,73 @@
+#!/usr/bin/env python3
+
+# stdlib
+import argparse
+import asyncio
+import json
+import logging
+import pprint
+import sys
+import time
+
+#pypi
+#import pynetstring
+
+# mine
+import jobcenter_client
+
+# globals
+pp = pprint.PrettyPrinter(indent=4)
+client = None
+debug = False
+
+async def main(wfname, inargs_json):
+
+
+    # test json
+    try:
+        inargs = json.loads(inargs_json)
+    except json.decoder.JSONDecodeError as err:
+        print(f'{inargs_json} is not valid json {err}')
+        return
+
+
+    logger = logging.getLogger('foobar')
+
+    client = jobcenter_client.JobCenter_Client(
+        #who = 'deArbeider',
+        #token = 'doetDingen',
+        #port = 6851,
+        #tls = True,
+        #tls_server_hostname = 'wsworker',
+        #tls_ca = '/home/wieger/src/jobcenter/etc/JobcenterCA.crt',
+        #tls_cert = '/home/wieger/wsclient.crt',
+        #tls_key = '/home/wieger/wsclient.pem',
+        who = 'theCustomer',
+        token = 'wantsThings',
+        #who = 'deKlant',
+        #token = 'dummy',
+        #method = 'clientcert',
+        #logger=logger
+        #level=logging.INFO,
+    )
+
+    logging.info('connecting..')
+    await client.connect()
+    logging.info('connected')
+    outargs = await client.call(wfname=wfname, inargs=inargs)
+    print(f'done? {outargs}')
+    await client.close()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description = 'Call RPC-Switch methods')
+    parser.add_argument('--debug', '-d', action='store_true')
+    parser.add_argument('--verbose', '-v', action='store_true')
+    parser.add_argument('wfname', help='the workflow to call')
+    parser.add_argument('json', help='json encoded inargs')
+    args = parser.parse_args()
+    #pp.pprint(args)
+    if args.verbose:
+        logging.basicConfig(level=logging.INFO)
+    if args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    asyncio.run(main(args.wfname, args.json), debug = args.debug)

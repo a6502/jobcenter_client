@@ -1,4 +1,4 @@
-# JObCenter-client
+# JobCenter-client
 
 todo: do this
 

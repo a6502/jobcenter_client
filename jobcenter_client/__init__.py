@@ -217,7 +217,12 @@ class JobCenter_Client:
         def get_task_done(t):
             res = t.result()
             self._debug(f"in done handler for get_task {t!s} {res!s}")
-            asyncio.create_task(do_task(*res))
+            # the result may be empty..
+            if res:
+                asyncio.create_task(do_task(*res))
+            else:
+                self._debug(f"aaah? no cookie? (get_task)")
+                # compatible with the perl version ;)
         # add_done_callback only accepts regular funtions, so we have to do
         # the two-step indirection above to make things nicely async
         t.add_done_callback(get_task_done)

@@ -100,6 +100,8 @@ class JobCenter_Client:
         json=False,
         logger=None,
         level=None,
+        ping_timeout=300,
+        ping_cb=None,
     ):
         self.who = who
         self.token = token
@@ -111,6 +113,8 @@ class JobCenter_Client:
         self.tls_server_hostname=tls_server_hostname
         self.json = json
         self.workername = None
+        self.ping_timeout = ping_timeout
+        self.ping_cb = ping_cb
         self._decoder = pynetstring.Decoder()
         if logger:
             self._logger = logger
@@ -175,6 +179,8 @@ class JobCenter_Client:
             c.set_result(outargs)
 
     def _rpc_ping(self, ping):
+        if self.ping_cb is not None:
+            self.ping_cb()
         return "pong"
 
     def _rpc_task_ready(self, args):
@@ -234,10 +240,16 @@ class JobCenter_Client:
     async def _handle(self):
         self._debug('in _handle')
         while True:
-            data = await self.reader.read(10000)  # FIXME: read size?
+            # self._debug(f"waiting for data with timeout {self.ping_timeout}")
+            try:
+                data = await asyncio.wait_for(self.reader.read(10000), timeout=self.ping_timeout)
+            except asyncio.TimeoutError:
+                self._logger.error('_handle: timeout waiting for work and/or ping')
+                await asyncio.wait_for(self.close(), timeout=10.0)
+                return WORK_PING_TIMEOUT
             if not data:
                 # eof?
-                self._debug("_handle bailing out!")
+                self._logger.error("_handle: connection closed")
                 return WORK_CONNECTION_CLOSED
             # self._debug(f"_handle got data: {data!r}")
             decoded_list = self._decoder.feed(data)  # FIXME: try?
